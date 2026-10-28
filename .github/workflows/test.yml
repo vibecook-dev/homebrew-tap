@@ -1,0 +1,39 @@
+# Installs the formula on macOS and Linux, runs its test and uninstalls it:
+# on every change (flux's release workflow pushes a new version here).
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  formula:
+    name: flux (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Homebrew on PATH (Linux)
+        if: runner.os == 'Linux'
+        run: echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+      - name: Tap this checkout
+        run: brew tap vibecook-dev/tap "$GITHUB_WORKSPACE"
+      - name: Install, test, uninstall
+        run: |
+          brew install vibecook-dev/tap/flux
+          brew test vibecook-dev/tap/flux
+          "$(brew --prefix)/bin/flux-server" --version
+          brew uninstall vibecook-dev/tap/flux
